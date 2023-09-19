@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: curl -s https://raw.githubusercontent.com/Cloudbox/cb/develop/cb_dep.sh | sudo -H bash
+        
+      - name: Import default configuration
+        run: for i in defaults/*; do cp -n $i "$(basename "${i%.*}")"; done
+
+      - name: Change default configuration user
+        run: sed -i 's/seed/runner/g' accounts.yml
+
+      - name: Syntax Check
+        run: sudo ansible-playbook cloudbox.yml --syntax-check
+
+      - name: Install Cloudbox
+        run: sudo ansible-playbook cloudbox.yml --tags "cloudbox,emby,netdata,sabnzbd" --skip-tags "settings" --extra-vars '{"continuous_integration":true}'
